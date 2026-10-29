@@ -48,6 +48,8 @@ th { font-weight: 600; }
 tr:nth-child(2n) { background: var(--row); }
 dt { font-weight: 600; }
 dd { margin: 0 0 .5em 1em; }
+details.frontmatter { margin: 0 0 1em; }
+details.frontmatter > summary { cursor: pointer; color: var(--muted); font-size: 85%; margin-bottom: .5em; }
 .listing { list-style: none; padding: 0; border: 1px solid var(--border); border-radius: 6px; }
 .listing li { margin: 0; padding: 8px 16px; border-top: 1px solid var(--border); }
 .listing li:first-child { border-top: 0; }
@@ -65,12 +67,29 @@ dd { margin: 0 0 .5em 1em; }
 <article>{{.Content}}</article>
 {{end}}
 <script type="module">
-if (document.querySelector("pre.mermaid")) {
-  const { default: mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs");
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default" });
+let mermaid;
+async function renderMermaid() {
+  if (!document.querySelector("pre.mermaid")) return;
+  if (!mermaid) {
+    ({ default: mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs"));
+    const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default" });
+  }
   await mermaid.run({ querySelector: "pre.mermaid" });
 }
+await renderMermaid();
+{{if .Watch}}
+// Swap in the re-rendered article when the file changes, keeping the scroll position.
+const url = new URL(location.href);
+url.searchParams.set("watch", "1");
+new EventSource(url).onmessage = async () => {
+  const res = await fetch(location.href, { cache: "no-store" });
+  if (!res.ok) return;
+  const doc = new DOMParser().parseFromString(await res.text(), "text/html");
+  document.querySelector("article").replaceWith(doc.querySelector("article"));
+  await renderMermaid();
+};
+{{end}}
 </script>
 </body>
 </html>

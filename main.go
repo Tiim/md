@@ -60,10 +60,15 @@ func run() error {
 	url := "http://" + ln.Addr().String() + "/"
 	fmt.Fprintf(os.Stderr, "Serving %s on %s (Ctrl+C to stop)\n", srv.name, url)
 
-	httpSrv := &http.Server{Handler: srv.routes(), ReadHeaderTimeout: 10 * time.Second}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	httpSrv := &http.Server{
+		Handler:           srv.routes(),
+		ReadHeaderTimeout: 10 * time.Second,
+		// Cancels long-lived watch streams on Ctrl+C so Shutdown doesn't wait for them.
+		BaseContext: func(net.Listener) context.Context { return ctx },
+	}
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- httpSrv.Serve(ln) }()

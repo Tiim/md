@@ -12,6 +12,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"time"
 )
 
 //go:embed page.html
@@ -24,6 +25,7 @@ type page struct {
 	Content template.HTML
 	Entries []entry // set for directory listings
 	CSS     template.CSS
+	Watch   bool // page reloads its content when the file changes
 }
 
 type entry struct {
@@ -101,13 +103,15 @@ func (s *server) handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.renderDir(w, name)
+	case isMarkdown(name) && r.URL.Query().Has("watch"):
+		s.watch(w, r, name)
 	case isMarkdown(name) && r.URL.Query().Get("raw") == "":
 		src, err := s.root.ReadFile(name)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		s.renderSource(w, name, src)
+		s.renderFile(w, name, src)
 	default:
 		// Images and other assets referenced by the markdown.
 		http.ServeFileFS(w, r, s.root.FS(), name)
@@ -115,12 +119,63 @@ func (s *server) handle(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) renderSource(w http.ResponseWriter, title string, src []byte) {
+	s.renderPage(w, page{Title: title}, src)
+}
+
+func (s *server) renderFile(w http.ResponseWriter, name string, src []byte) {
+	s.renderPage(w, page{Title: name, Watch: true}, src)
+}
+
+func (s *server) renderPage(w http.ResponseWriter, p page, src []byte) {
 	out, err := renderMarkdown(src)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	s.writePage(w, page{Title: title, Content: template.HTML(out)})
+	p.Content = template.HTML(out)
+	s.writePage(w, p)
+}
+
+// watch streams a server-sent event whenever the file's size or
+// modification time changes. Polling the name (rather than the open file)
+// also catches editors that save by replacing the file.
+func (s *server) watch(w http.ResponseWriter, r *http.Request, name string) {
+	rc := http.NewResponseController(w)
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
+	if err := rc.Flush(); err != nil {
+		return
+	}
+
+	var last fs.FileInfo
+	if info, err := s.root.Stat(name); err == nil {
+		last = info
+	}
+
+	ticker := time.NewTicker(300 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-ticker.C:
+		}
+		info, err := s.root.Stat(name)
+		if err != nil {
+			continue // possibly mid-save; keep the last known state
+		}
+		if last != nil && info.ModTime().Equal(last.ModTime()) && info.Size() == last.Size() {
+			continue
+		}
+		last = info
+		if _, err := fmt.Fprint(w, "data: change\n\n"); err != nil {
+			return
+		}
+		if err := rc.Flush(); err != nil {
+			return
+		}
+	}
 }
 
 func (s *server) renderDir(w http.ResponseWriter, dir string) {
