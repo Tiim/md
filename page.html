@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<style>
+:root {
+  --fg: #1f2328; --muted: #59636e; --bg: #ffffff; --border: #d1d9e0;
+  --code-bg: #f6f8fa; --link: #0969da; --quote: #59636e; --row: #f6f8fa;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e6edf3; --muted: #9198a1; --bg: #0d1117; --border: #3d444d;
+    --code-bg: #151b23; --link: #4493f8; --quote: #9198a1; --row: #151b23;
+  }
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); color: var(--fg); }
+body {
+  margin: 0 auto; max-width: 900px; padding: 32px 24px 96px;
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  word-wrap: break-word;
+}
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1, h2, h3, h4, h5, h6 { margin: 1.5em 0 .6em; font-weight: 600; line-height: 1.25; }
+h1 { font-size: 2em; padding-bottom: .3em; border-bottom: 1px solid var(--border); }
+h2 { font-size: 1.5em; padding-bottom: .3em; border-bottom: 1px solid var(--border); }
+h3 { font-size: 1.25em; }
+h1:first-child, h2:first-child { margin-top: 0; }
+p, ul, ol, dl, table, blockquote, pre { margin: 0 0 1em; }
+ul, ol { padding-left: 2em; }
+li + li { margin-top: .25em; }
+li > input[type=checkbox] { margin: 0 .4em 0 -1.4em; }
+ul:has(> li > input[type=checkbox]) { list-style: none; }
+blockquote { padding: 0 1em; color: var(--quote); border-left: .25em solid var(--border); }
+hr { height: .25em; margin: 1.5em 0; background: var(--border); border: 0; }
+img { max-width: 100%; }
+code, pre { font: 85%/1.45 ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+:not(pre) > code { padding: .2em .4em; background: var(--code-bg); border-radius: 6px; }
+pre { padding: 16px; overflow: auto; background: var(--code-bg) !important; border-radius: 6px; }
+pre code { font-size: 100%; }
+pre.mermaid { background: transparent !important; text-align: center; }
+table { display: block; width: max-content; max-width: 100%; overflow: auto; border-collapse: collapse; }
+th, td { padding: 6px 13px; border: 1px solid var(--border); }
+th { font-weight: 600; }
+tr:nth-child(2n) { background: var(--row); }
+dt { font-weight: 600; }
+dd { margin: 0 0 .5em 1em; }
+.listing { list-style: none; padding: 0; border: 1px solid var(--border); border-radius: 6px; }
+.listing li { margin: 0; padding: 8px 16px; border-top: 1px solid var(--border); }
+.listing li:first-child { border-top: 0; }
+.listing .icon { display: inline-block; width: 1.5em; color: var(--muted); }
+{{.CSS}}
+</style>
+</head>
+<body>
+{{if .Entries}}
+<h1>{{.Title}}</h1>
+<ul class="listing">
+{{range .Entries}}<li><span class="icon">{{if .IsDir}}&#128193;{{else}}&#128196;{{end}}</span><a href="{{.Href}}">{{.Name}}</a></li>
+{{end}}</ul>
+{{else}}
+<article>{{.Content}}</article>
+{{end}}
+<script type="module">
+if (document.querySelector("pre.mermaid")) {
+  const { default: mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs");
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "default" });
+  await mermaid.run({ querySelector: "pre.mermaid" });
+}
+</script>
+</body>
+</html>
