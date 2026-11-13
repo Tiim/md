@@ -1,4 +1,4 @@
-module github.com/tiim/md
+module github.com/Tiim/md
 
 go 1.27.4
 
