@@ -1,6 +1,6 @@
-module md
+module github.com/tiim/md
 
-go 1.27.2
+go 1.27.4
 
 require (
 	github.com/alecthomas/chroma/v2 v2.27.0
